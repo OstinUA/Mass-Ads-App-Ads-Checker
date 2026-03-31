@@ -6,8 +6,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const tableBody = document.querySelector('#resultsTable tbody');
   const statusText = document.getElementById('statusText');
   const progressText = document.getElementById('progressText');
+  const themeSelect = document.getElementById('themeSelect');
 
   let results = [];
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  applyTheme(savedTheme);
+  themeSelect.value = savedTheme;
+
+  themeSelect.addEventListener('change', () => {
+    const selectedTheme = themeSelect.value;
+    localStorage.setItem('theme', selectedTheme);
+    applyTheme(selectedTheme);
+  });
 
   checkBtn.addEventListener('click', async () => {
     const text = domainInput.value;
@@ -144,5 +154,9 @@ document.addEventListener('DOMContentLoaded', () => {
       <td class="col-lines">${res.lines}</td>
     `;
     tableBody.appendChild(tr);
+  }
+
+  function applyTheme(theme) {
+    document.body.classList.toggle('dark', theme === 'dark');
   }
 });

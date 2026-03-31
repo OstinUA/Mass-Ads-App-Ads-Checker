@@ -4,33 +4,69 @@
   <meta charset="utf-8">
   <title>Ads & App-Ads Checker</title>
   <style>
-    body { font-family: "Segoe UI", Tahoma, sans-serif; padding: 20px; background: #f4f6f8; margin: 0; }
-    h3 { margin-top: 0; color: #2c3e50; margin-bottom: 15px; }
-    textarea { width: 100%; height: 150px; padding: 12px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 6px; font-family: monospace; resize: vertical; font-size: 13px; margin-bottom: 10px; }
+    :root {
+      --accent: #30ba8f;
+      --accent-hover: #269874;
+      --bg: #f4f6f8;
+      --text-main: #2c3e50;
+      --text-muted: #546e7a;
+      --border: #ced4da;
+      --panel-bg: #ffffff;
+      --table-head: #e9ecef;
+      --table-border: #eceff1;
+      --select-bg: #ffffff;
+      --link: #30ba8f;
+      --download-bg: #30ba8f;
+      --download-hover: #269874;
+    }
+    body.dark {
+      --bg: #1f2428;
+      --text-main: #e6edf3;
+      --text-muted: #9aa6b2;
+      --border: #3a4148;
+      --panel-bg: #2a3138;
+      --table-head: #353d45;
+      --table-border: #3a4148;
+      --select-bg: #2a3138;
+      --link: #4fd3a9;
+      --download-bg: #30ba8f;
+      --download-hover: #269874;
+    }
+    body { font-family: "Segoe UI", Tahoma, sans-serif; padding: 20px; background: var(--bg); margin: 0; color: var(--text-main); }
+    h3 { margin: 0; color: var(--text-main); }
+    textarea { width: 100%; height: 150px; padding: 12px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 6px; font-family: monospace; resize: vertical; font-size: 13px; margin-bottom: 10px; background: var(--panel-bg); color: var(--text-main); }
     .controls-row { display: flex; gap: 10px; margin-bottom: 10px; }
-    select { width: 35%; padding: 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 14px; background: white; cursor: pointer; }
-    button { width: 65%; padding: 12px; background: #007bff; color: white; border: none; cursor: pointer; font-weight: 600; border-radius: 6px; transition: background 0.2s; font-size: 14px; }
-    button:hover { background: #0056b3; }
+    select { width: 35%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; background: var(--select-bg); color: var(--text-main); cursor: pointer; }
+    button { width: 65%; padding: 12px; background: var(--accent); color: white; border: none; cursor: pointer; font-weight: 600; border-radius: 6px; transition: background 0.2s; font-size: 14px; }
+    button:hover { background: var(--accent-hover); }
     button:disabled { background: #b0bec5; cursor: not-allowed; }
-    .status-bar { margin: 15px 0 10px; font-size: 13px; color: #546e7a; display: flex; justify-content: space-between; font-weight: 500; }
-    .table-container { background: white; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow: hidden; margin-bottom: 20px; }
+    .status-bar { margin: 15px 0 10px; font-size: 13px; color: var(--text-muted); display: flex; justify-content: space-between; font-weight: 500; }
+    .table-container { background: var(--panel-bg); border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow: hidden; margin-bottom: 20px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { border-bottom: 1px solid #eceff1; padding: 10px 12px; text-align: left; }
-    th { background-color: #e9ecef; font-weight: 600; color: #455a64; }
+    th, td { border-bottom: 1px solid var(--table-border); padding: 10px 12px; text-align: left; }
+    th { background-color: var(--table-head); font-weight: 600; color: var(--text-main); }
     .col-url { width: 60%; word-break: break-all; }
     .col-status { width: 25%; }
     .col-lines { width: 15%; text-align: center; }
     .valid { color: #2e7d32; font-weight: bold; }
     .error { color: #c62828; font-weight: bold; }
     .empty { color: #f57f17; font-weight: bold; }
-    a { color: #1976d2; text-decoration: none; }
+    a { color: var(--link); text-decoration: none; }
     a:hover { text-decoration: underline; }
-    #downloadBtn { width: 100%; background: #388e3c; margin-top: 0; }
-    #downloadBtn:hover { background: #2e7d32; }
+    #downloadBtn { width: 100%; background: var(--download-bg); margin-top: 0; }
+    #downloadBtn:hover { background: var(--download-hover); }
+    .top-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    #themeSelect { width: 110px; padding: 8px 10px; font-size: 13px; }
   </style>
 </head>
 <body>
-  <h3>Mass Ads & App-Ads Checker</h3>
+  <div class="top-row">
+    <h3>Mass Ads & App-Ads Checker</h3>
+    <select id="themeSelect" aria-label="Theme">
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select>
+  </div>
   <textarea id="domainList" placeholder="Enter domains here (one per line):&#10;example.com&#10;google.com"></textarea>
   
   <div class="controls-row">
