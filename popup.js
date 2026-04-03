@@ -47,7 +47,7 @@ function initPopup() {
   applyTheme(currentTheme);
   updateThemeBtnText(currentTheme);
 
-  // --- Переключение режимов ---
+  // Block mode switching while a scan is running to avoid mixed UI state.
   modeToggleBtn.addEventListener('click', () => {
     if (isScanning) return;
     isBulkMode = !isBulkMode;
@@ -74,9 +74,7 @@ function initPopup() {
   }
   themeToggleBtn.addEventListener('click', handleThemeToggle);
 
-  // ==========================================
-  // ЛОГИКА СТАНДАРТНОГО РЕЖИМА
-  // ==========================================
+  // Standard mode handlers.
 
   loadFileBtn.addEventListener('click', () => fileInput.click());
 
@@ -175,9 +173,7 @@ function initPopup() {
   downloadBtn.addEventListener('click', handleDownloadClick);
 
 
-  // ==========================================
-  // ЛОГИКА МАССОВОГО РЕЖИМА
-  // ==========================================
+  // Bulk mode handlers.
 
   bulkLoadFileBtn.addEventListener('click', () => bulkFileInput.click());
 
@@ -283,9 +279,7 @@ function initPopup() {
     triggerDownload(csvContent, 'bulk_checker_results.csv');
   });
 
-  // ==========================================
-  // ОБЩИЕ ФУНКЦИИ 
-  // ==========================================
+  // Shared helpers.
 
   function triggerDownload(content, filename) {
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
