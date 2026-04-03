@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mass Ads & App-Ads Checker",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Bulk validate ads.txt and app-ads.txt files with deterministic URL probing, IAB line parsing, and CSV export.",
   "permissions": ["storage"],
   "host_permissions": [

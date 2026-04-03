@@ -2,7 +2,7 @@
 
 A browser-native logging and validation toolkit for high-volume `ads.txt` / `app-ads.txt` checks with exportable operational diagnostics.
 
-[![Version](https://img.shields.io/badge/version-2.4.0-30BA8F?style=for-the-badge)](./manifest.json)
+[![Version](https://img.shields.io/badge/version-2.5.0-30BA8F?style=for-the-badge)](./manifest.json)
 [![Platform: Chrome Extension](https://img.shields.io/badge/platform-Chrome_Extension-4285F4?style=for-the-badge&logo=googlechrome)](https://developer.chrome.com/docs/extensions/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-1f6feb?style=for-the-badge)](LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-ff9800?style=for-the-badge)](./manifest.json)
