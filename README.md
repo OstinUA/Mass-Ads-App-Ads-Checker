@@ -1,4 +1,4 @@
-# AdOps TXT Scanner Logging Library
+# Mass Ads & App-Ads Checker
 
 A browser-native logging and validation toolkit for high-volume `ads.txt` / `app-ads.txt` checks with exportable operational diagnostics.
 
