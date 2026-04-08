@@ -1,0 +1,51 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-web-assets:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install linters
+        run: |
+          npm install --no-save \
+            eslint@9 \
+            htmlhint@1.6.3 \
+            stylelint@16 \
+            stylelint-config-standard@36
+
+      - name: Lint JavaScript
+        run: |
+          npx eslint \
+            --no-config-lookup \
+            --rule 'no-undef:error' \
+            --rule 'no-unused-vars:warn' \
+            background.js assets/js/**/*.js
+
+      - name: Lint HTML
+        run: |
+          npx htmlhint \
+            --rules '{"tagname-lowercase": true, "attr-lowercase": true, "doctype-first": false}' \
+            '*.html'
+
+      - name: Lint CSS
+        run: |
+          npx stylelint \
+            --config '{"extends": ["stylelint-config-standard"]}' \
+            'assets/css/**/*.css'
