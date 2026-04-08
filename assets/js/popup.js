@@ -85,7 +85,6 @@ function initPopup() {
   const modeToggleBtn = document.getElementById('modeToggleBtn');
   const standardModeView = document.getElementById('standardModeView');
   const bulkModeView = document.getElementById('bulkModeView');
-  const csvBulkModeView = document.getElementById('csvBulkModeView');
 
   const checkBtn = document.getElementById('checkBtn');
   const stopBtn = document.getElementById('stopBtn');
@@ -102,22 +101,15 @@ function initPopup() {
 
   const bulkLoadFileBtn = document.getElementById('bulkLoadFileBtn');
   const bulkFileInput = document.getElementById('bulkFileInput');
+  const bulkInputTypeSelect = document.getElementById('bulkInputTypeSelect');
   const bulkFileTypeSelect = document.getElementById('bulkFileTypeSelect');
+  const bulkIncludeStatus = document.getElementById('bulkIncludeStatus');
   const bulkCheckBtn = document.getElementById('bulkCheckBtn');
   const bulkStopBtn = document.getElementById('bulkStopBtn');
   const bulkDownloadBtn = document.getElementById('bulkDownloadBtn');
   const bulkFileStatus = document.getElementById('bulkFileStatus');
   const bulkProgressValue = document.getElementById('bulkProgressValue');
   const bulkTimeValue = document.getElementById('bulkTimeValue');
-
-  const csvBulkFileInput = document.getElementById('csvBulkFileInput');
-  const csvBulkLoadBtn = document.getElementById('csvBulkLoadBtn');
-  const csvBulkCheckBtn = document.getElementById('csvBulkCheckBtn');
-  const csvBulkStopBtn = document.getElementById('csvBulkStopBtn');
-  const csvBulkDownloadBtn = document.getElementById('csvBulkDownloadBtn');
-  const csvBulkFileStatus = document.getElementById('csvBulkFileStatus');
-  const csvBulkProgress = document.getElementById('csvBulkProgress');
-  const csvBulkTime = document.getElementById('csvBulkTime');
 
   let results = [];
   let isScanning = false;
@@ -129,30 +121,22 @@ function initPopup() {
   let bulkStartTime = 0;
   let bulkResultsArray = [];
 
-  let csvBulkEntries = [];
-  let csvBulkResultsArray = [];
-  let csvBulkTimerInterval = null;
-  let csvBulkStartTime = 0;
-
   applyTheme(currentTheme);
   updateThemeBtnText(currentTheme);
   setModeByIndex(modeIndex);
 
   modeToggleBtn.addEventListener('click', () => {
     if (isScanning) return;
-    modeIndex = (modeIndex + 1) % 3;
+    modeIndex = (modeIndex + 1) % 2;
     setModeByIndex(modeIndex);
   });
 
   function setModeByIndex(index) {
     standardModeView.style.display = index === 0 ? 'block' : 'none';
     bulkModeView.style.display = index === 1 ? 'block' : 'none';
-    csvBulkModeView.style.display = index === 2 ? 'block' : 'none';
 
     if (index === 0) {
       modeToggleBtn.innerText = 'Bulk Mode';
-    } else if (index === 1) {
-      modeToggleBtn.innerText = 'CSV Bulk Mode';
     } else {
       modeToggleBtn.innerText = 'Standard Mode';
     }
@@ -295,14 +279,70 @@ function initPopup() {
   checkBtn.addEventListener('click', handleCheckClick);
   downloadBtn.addEventListener('click', handleDownloadClick);
 
-  bulkLoadFileBtn.addEventListener('click', () => bulkFileInput.click());
+  function updateBulkInputAccept() {
+    const type = bulkInputTypeSelect.value;
+    bulkFileInput.setAttribute('accept', type === 'csv' ? '.csv' : '.txt');
+  }
+
+  function resetBulkLoadState() {
+    bulkLines = [];
+    bulkCheckBtn.disabled = true;
+    bulkDownloadBtn.style.display = 'none';
+    bulkResultsArray = [];
+    bulkFileStatus.innerText = 'No file selected';
+    bulkProgressValue.innerText = '0 / 0';
+    bulkTimeValue.innerText = '00:00';
+    bulkFileInput.value = '';
+  }
+
+  bulkInputTypeSelect.addEventListener('change', () => {
+    updateBulkInputAccept();
+    resetBulkLoadState();
+  });
+
+  bulkLoadFileBtn.addEventListener('click', () => {
+    updateBulkInputAccept();
+    bulkFileInput.click();
+  });
 
   bulkFileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = (event) => {
-      bulkLines = event.target.result.split('\n').map(l => l.trim()).filter(l => l);
+      const selectedInputType = bulkInputTypeSelect.value;
+
+      if (selectedInputType === 'csv') {
+        const text = String(event.target.result || '');
+        const rows = text.split(/\r?\n/).map(row => row.trim()).filter(Boolean);
+
+        const parsedDomains = [];
+        let startIndex = 0;
+
+        if (rows.length > 0 && /(domain|url|site|website)/i.test(rows[0])) {
+          startIndex = 1;
+        }
+
+        const dedupeSet = new Set();
+
+        for (let i = startIndex; i < rows.length; i++) {
+          const row = rows[i];
+          const firstColumn = (row.split(/[;,]/)[0] || '').trim();
+          if (!firstColumn) continue;
+
+          const normalized = normalizeDomain(firstColumn);
+          if (!normalized || dedupeSet.has(normalized)) continue;
+
+          dedupeSet.add(normalized);
+          parsedDomains.push(normalized);
+        }
+
+        bulkLines = parsedDomains;
+      } else {
+        bulkLines = String(event.target.result || '').split('\n').map(l => l.trim()).filter(l => l);
+      }
+
       bulkFileStatus.innerText = `File loaded: ${bulkLines.length} domains ready.`;
       bulkProgressValue.innerText = `0 / ${bulkLines.length}`;
       bulkTimeValue.innerText = '00:00';
@@ -310,6 +350,7 @@ function initPopup() {
       bulkDownloadBtn.style.display = 'none';
       bulkFileInput.value = '';
     };
+
     reader.readAsText(file);
   });
 
@@ -326,22 +367,39 @@ function initPopup() {
     bulkFileStatus.innerText = 'Stopping after current batch...';
   });
 
+  function buildBulkHeader(checkType, includeStatus) {
+    if (checkType === 'both') {
+      if (includeStatus) {
+        return 'Domain,ads.txt Status,ads.txt Lines,app-ads.txt Status,app-ads.txt Lines';
+      }
+      return 'Domain,ads.txt Lines,app-ads.txt Lines';
+    }
+
+    if (includeStatus) {
+      return 'File URL,Status,Lines';
+    }
+    return 'File URL,Lines';
+  }
+
   async function handleBulkCheckClick() {
     const fileType = bulkFileTypeSelect.value;
     const total = bulkLines.length;
+    const includeStatus = bulkIncludeStatus.checked;
 
     if (total === 0) return;
 
     isScanning = true;
     modeToggleBtn.disabled = true;
-    bulkResultsArray = ['File URL,Status,Lines'];
+    bulkResultsArray = [buildBulkHeader(fileType, includeStatus)];
     bulkDownloadBtn.style.display = 'none';
 
     bulkCheckBtn.style.display = 'none';
     bulkStopBtn.style.display = 'block';
     bulkStopBtn.disabled = false;
     bulkLoadFileBtn.disabled = true;
+    bulkInputTypeSelect.disabled = true;
     bulkFileTypeSelect.disabled = true;
+    bulkIncludeStatus.disabled = true;
 
     bulkFileStatus.innerText = 'Processing...';
     bulkProgressValue.innerText = `0 / ${total}`;
@@ -362,8 +420,53 @@ function initPopup() {
       const batchResults = await Promise.all(batch.map(domain => checkDomainSmart(domain, fileType)));
 
       batchResults.forEach(res => {
-        const urlForCsv = res.url !== '-' ? res.url : res.domain;
-        bulkResultsArray.push(`${urlForCsv},${res.status},${res.lines}`);
+        if (fileType === 'both') {
+          const normalized = normalizeDomain(res.domain);
+          const rowDomain = normalized || res.domain;
+          const adsMatch = res.status.match(/ads:\s([^/]+?)(?:\s\/|$)/);
+          const appAdsMatch = res.status.match(/app-ads:\s(.+)$/);
+
+          const adsSegment = adsMatch ? adsMatch[1].trim() : 'Error';
+          const appAdsSegment = appAdsMatch ? appAdsMatch[1].trim() : 'Error';
+
+          const adsStatusMatch = adsSegment.match(/^(Valid|Empty File|Error)/);
+          const appAdsStatusMatch = appAdsSegment.match(/^(Valid|Empty File|Error)/);
+          const adsLinesMatch = adsSegment.match(/\((\d+)\)/);
+          const appAdsLinesMatch = appAdsSegment.match(/\((\d+)\)/);
+
+          const adsStatus = adsStatusMatch ? adsStatusMatch[1] : 'Error';
+          const appAdsStatus = appAdsStatusMatch ? appAdsStatusMatch[1] : 'Error';
+          const adsLines = adsLinesMatch ? Number(adsLinesMatch[1]) : 0;
+          const appAdsLines = appAdsLinesMatch ? Number(appAdsLinesMatch[1]) : 0;
+
+          if (includeStatus) {
+            bulkResultsArray.push(
+              [
+                escapeCsvCell(rowDomain),
+                escapeCsvCell(adsStatus),
+                adsLines,
+                escapeCsvCell(appAdsStatus),
+                appAdsLines
+              ].join(',')
+            );
+          } else {
+            bulkResultsArray.push(
+              [
+                escapeCsvCell(rowDomain),
+                adsLines,
+                appAdsLines
+              ].join(',')
+            );
+          }
+        } else {
+          const urlForCsv = res.url !== '-' ? res.url : res.domain;
+          if (includeStatus) {
+            bulkResultsArray.push(`${escapeCsvCell(urlForCsv)},${escapeCsvCell(res.status)},${res.lines}`);
+          } else {
+            bulkResultsArray.push(`${escapeCsvCell(urlForCsv)},${res.lines}`);
+          }
+        }
+
         completed++;
       });
 
@@ -385,7 +488,9 @@ function initPopup() {
     bulkCheckBtn.style.display = 'block';
     bulkStopBtn.style.display = 'none';
     bulkLoadFileBtn.disabled = false;
+    bulkInputTypeSelect.disabled = false;
     bulkFileTypeSelect.disabled = false;
+    bulkIncludeStatus.disabled = false;
 
     if (bulkResultsArray.length > 1) {
       bulkDownloadBtn.style.display = 'block';
@@ -397,147 +502,6 @@ function initPopup() {
   bulkDownloadBtn.addEventListener('click', () => {
     const csvContent = bulkResultsArray.join('\n');
     triggerDownload(csvContent, 'bulk_checker_results.csv');
-  });
-
-  csvBulkLoadBtn.addEventListener('click', () => csvBulkFileInput.click());
-
-  csvBulkFileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = String(event.target.result || '');
-      const rows = text.split(/\r?\n/).map(row => row.trim()).filter(Boolean);
-
-      const parsed = [];
-      let startIndex = 0;
-
-      if (rows.length > 0 && /(domain|url|site|website)/i.test(rows[0])) {
-        startIndex = 1;
-      }
-
-      const dedupeMap = new Map();
-
-      for (let i = startIndex; i < rows.length; i++) {
-        const row = rows[i];
-        const firstColumn = (row.split(/[;,]/)[0] || '').trim();
-        if (!firstColumn) continue;
-
-        const normalized = normalizeDomain(firstColumn);
-        if (!normalized) continue;
-
-        if (!dedupeMap.has(normalized)) {
-          dedupeMap.set(normalized, firstColumn.replace(/^["']|["']$/g, ''));
-        }
-      }
-
-      dedupeMap.forEach((rawOriginal, normalizedDomain) => {
-        parsed.push({ rawOriginal, normalizedDomain });
-      });
-
-      csvBulkEntries = parsed;
-      csvBulkResultsArray = ['Original Domain,ads.txt,app-ads.txt'];
-      csvBulkFileStatus.innerText = `File loaded: ${csvBulkEntries.length} domains ready.`;
-      csvBulkProgress.innerText = `0 / ${csvBulkEntries.length}`;
-      csvBulkTime.innerText = '00:00';
-      csvBulkCheckBtn.disabled = csvBulkEntries.length === 0;
-      csvBulkDownloadBtn.style.display = 'none';
-      csvBulkFileInput.value = '';
-    };
-    reader.readAsText(file);
-  });
-
-  function updateCsvBulkTimer() {
-    const diff = Math.floor((Date.now() - csvBulkStartTime) / 1000);
-    const m = String(Math.floor(diff / 60)).padStart(2, '0');
-    const s = String(diff % 60).padStart(2, '0');
-    csvBulkTime.innerText = `${m}:${s}`;
-  }
-
-  csvBulkStopBtn.addEventListener('click', () => {
-    isScanning = false;
-    csvBulkStopBtn.disabled = true;
-    csvBulkFileStatus.innerText = 'Stopping after current batch...';
-  });
-
-  csvBulkCheckBtn.addEventListener('click', async () => {
-    const total = csvBulkEntries.length;
-    if (total === 0) return;
-
-    isScanning = true;
-    modeToggleBtn.disabled = true;
-    csvBulkResultsArray = ['Original Domain,ads.txt,app-ads.txt'];
-
-    csvBulkCheckBtn.style.display = 'none';
-    csvBulkStopBtn.style.display = 'block';
-    csvBulkStopBtn.disabled = false;
-    csvBulkLoadBtn.disabled = true;
-    csvBulkDownloadBtn.style.display = 'none';
-
-    csvBulkFileStatus.innerText = 'Processing...';
-    csvBulkProgress.innerText = `0 / ${total}`;
-
-    csvBulkStartTime = Date.now();
-    csvBulkTimerInterval = setInterval(updateCsvBulkTimer, 1000);
-
-    const batchSize = 10;
-    let completed = 0;
-
-    for (let i = 0; i < total; i += batchSize) {
-      if (!isScanning) {
-        csvBulkFileStatus.innerText = 'Stopped by user.';
-        break;
-      }
-
-      const batch = csvBulkEntries.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(async (entry) => {
-          const [adsResult, appAdsResult] = await Promise.all([
-            checkSingleFile(entry.normalizedDomain, 'ads.txt'),
-            checkSingleFile(entry.normalizedDomain, 'app-ads.txt')
-          ]);
-
-          return {
-            original: entry.rawOriginal,
-            ads: adsResult.status,
-            appAds: appAdsResult.status
-          };
-        })
-      );
-
-      batchResults.forEach((row) => {
-        csvBulkResultsArray.push(`${escapeCsvCell(row.original)},${escapeCsvCell(row.ads)},${escapeCsvCell(row.appAds)}`);
-        completed++;
-      });
-
-      csvBulkProgress.innerText = `${completed} / ${total}`;
-      updateCsvBulkTimer();
-
-      if (isScanning && (i + batchSize < total)) {
-        await new Promise(r => setTimeout(r, 50));
-      }
-    }
-
-    clearInterval(csvBulkTimerInterval);
-
-    if (isScanning) {
-      csvBulkFileStatus.innerText = 'Completed successfully!';
-    }
-
-    isScanning = false;
-    modeToggleBtn.disabled = false;
-    csvBulkCheckBtn.style.display = 'block';
-    csvBulkStopBtn.style.display = 'none';
-    csvBulkLoadBtn.disabled = false;
-
-    if (csvBulkResultsArray.length > 1) {
-      csvBulkDownloadBtn.style.display = 'block';
-    }
-  });
-
-  csvBulkDownloadBtn.addEventListener('click', () => {
-    triggerDownload(csvBulkResultsArray.join('\n'), 'csv_bulk_results.csv');
   });
 
   function triggerDownload(content, filename) {
