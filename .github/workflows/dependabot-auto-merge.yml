@@ -2,16 +2,22 @@ name: Dependabot Auto Merge
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, reopened, synchronize, ready_for_review]
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: read-all
+
+concurrency:
+  group: dependabot-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
 
 jobs:
-  auto-merge:
+  automerge:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - name: Fetch Dependabot metadata
@@ -20,42 +26,20 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Approve patch and minor updates
+      - name: Approve safe non-breaking updates
         if: |
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        uses: actions/github-script@v8
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            await github.rest.pulls.createReview({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
-              event: 'APPROVE',
-              body: 'Auto-approving non-breaking Dependabot update.'
-            });
-
-      - name: Enable auto-merge for approved updates
-        if: |
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        uses: actions/github-script@v8
+          github.event.pull_request.draft == false &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+           steps.metadata.outputs.update-type == 'version-update:semver-minor')
         env:
-          MERGE_METHOD: squash # Change to merge or rebase to match repository policy.
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const pull_number = context.payload.pull_request.number;
-            await github.graphql(
-              `mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
-                enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId, mergeMethod: $mergeMethod}) {
-                  clientMutationId
-                }
-              }`,
-              {
-                pullRequestId: context.payload.pull_request.node_id,
-                mergeMethod: process.env.MERGE_METHOD.toUpperCase()
-              }
-            );
-            core.info(`Auto-merge enabled for PR #${pull_number}.`);
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr review "${{ github.event.pull_request.number }}" --approve
+
+      - name: Enable auto-merge for safe non-breaking updates
+        if: |
+          github.event.pull_request.draft == false &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+           steps.metadata.outputs.update-type == 'version-update:semver-minor')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge "${{ github.event.pull_request.number }}" --auto --merge

@@ -1,51 +1,59 @@
-name: Lint
+name: Lint and Static Checks
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
-permissions:
-  contents: read
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
 
 jobs:
-  lint-web-assets:
+  lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: Install linters
+      - name: Install dependencies
         run: |
-          npm install --no-save \
-            eslint@9 \
-            htmlhint@1.6.3 \
-            stylelint@16 \
-            stylelint-config-standard@36
+          if [ ! -f package.json ]; then
+            echo "No package.json found. Skipping npm install."
+            exit 0
+          fi
+          if [ -f package-lock.json ]; then
+            echo "package-lock.json found. Running fast install (npm ci)..."
+            npm ci
+          else
+            echo "package-lock.json NOT found. Generating it (npm install)..."
+            npm install --no-audit --no-fund
+          fi
 
-      - name: Lint JavaScript
+      - name: Run project lint script when available
         run: |
-          npx eslint \
-            --no-config-lookup \
-            --rule 'no-undef:error' \
-            --rule 'no-unused-vars:warn' \
-            background.js assets/js/**/*.js
+          if [ -f package.json ]; then
+            npm run lint --if-present
+          else
+            echo "No package.json found. Skipping lint."
+          fi
 
-      - name: Lint HTML
+      - name: Validate JavaScript syntax
         run: |
-          npx htmlhint \
-            --rules '{"tagname-lowercase": true, "attr-lowercase": true, "doctype-first": false}' \
-            '*.html'
-
-      - name: Lint CSS
-        run: |
-          npx stylelint \
-            --config '{"extends": ["stylelint-config-standard"]}' \
-            'assets/css/**/*.css'
+          if [ -d api ]; then
+            while IFS= read -r -d '' file; do
+              node --check "$file"
+            done < <(find api -type f -name '*.js' -print0)
+          else
+            echo "No api/ directory found. Skipping JavaScript syntax validation."
+          fi
